@@ -11,16 +11,14 @@ const path = require("path");
 const http = require("http");
 const { Server } = require("socket.io");
 const fs = require("fs");
-const cors = require("cors"); // Added CORS
+const cors = require("cors");
+const { v4: uuidv4 } = require("uuid");
 
 const User = require("../model/User");
 
 const app = express();
 
-// Enable CORS to allow requests from your frontend (http://localhost:3000)
-app.use(cors({
-  origin: "http://localhost:3000"
-}));
+app.use(cors({ origin: "http://localhost:3000" }));
 
 const server = http.createServer(app);
 const io = new Server(server, {
@@ -33,7 +31,6 @@ const io = new Server(server, {
 const PORT = process.env.PORT || 5000;
 const FRONTEND_URL = process.env.FRONTEND_URL || "/";
 
-// MongoDB connection
 mongoose.connect("mongodb+srv://mannavavamsi03:Oxygen689@dungeondweller.jeulo.mongodb.net/?retryWrites=true&w=majority&appName=DungeonDweller", {
   useNewUrlParser: true,
   useUnifiedTopology: true
@@ -43,7 +40,6 @@ mongoose.connect("mongodb+srv://mannavavamsi03:Oxygen689@dungeondweller.jeulo.mo
   console.error("❌ MongoDB connection error:", err);
 });
 
-// Middleware
 app.set("view engine", "ejs");
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
@@ -60,7 +56,6 @@ passport.use(new LocalStrategy(User.authenticate()));
 passport.serializeUser(User.serializeUser());
 passport.deserializeUser(User.deserializeUser());
 
-// Email transporter
 const transporter = nodemailer.createTransport({
   service: "Gmail",
   auth: {
@@ -69,10 +64,9 @@ const transporter = nodemailer.createTransport({
   }
 });
 
-// Routes
-app.get("/", (req, res) => res.render("home"));
+app.get("/", (req, res) => res.render("home", { user: req.user }));
 app.get("/register", (req, res) => res.render("register"));
-app.get("/login", (req, res) => res.render("login"));
+app.get("/login", (req, res) => res.render("login", { query: req.query || {} }));
 
 app.post("/register", (req, res) => {
   const { username, email, password } = req.body;
@@ -81,7 +75,7 @@ app.post("/register", (req, res) => {
   const newUser = new User({ username, email, verificationToken: token, isVerified: false });
 
   User.register(newUser, password, (err, user) => {
-    if (err) return res.status(400).json({ error: err.message });
+    if (err) return res.status(400).render("register", { error: err.message });
 
     const mailOptions = {
       from: process.env.EMAIL_USER,
@@ -115,14 +109,30 @@ app.post("/login", passport.authenticate("local", {
   failureRedirect: "/login"
 }), (req, res) => {
   if (!req.user.isVerified) {
-    req.logout();
-    return res.status(401).json({ error: "Account not verified." });
+    req.logout(() => {});
+    return res.redirect("/login?error=notverified");
   }
-  res.redirect(FRONTEND_URL);
+  res.redirect("/session-options");
+});
+
+app.get("/session-options", (req, res) => {
+  if (!req.isAuthenticated()) return res.redirect("/login");
+  res.render("session-options", { username: req.user.username });
+});
+
+app.post("/create-session", (req, res) => {
+  const sessionId = uuidv4();
+  res.render("session-created", { sessionId });
+});
+
+app.get("/join-session", (req, res) => {
+  const { sessionId } = req.query;
+  if (!sessionId || sessionId.length < 6) return res.status(400).send("Invalid session ID");
+  res.redirect(`/session/${sessionId}`);
 });
 
 app.get("/logout", (req, res) => {
-  req.logout();
+  req.logout(() => {});
   res.redirect("/");
 });
 
@@ -132,7 +142,6 @@ const itemSchema = new mongoose.Schema({
 });
 const Item = mongoose.model('Item', itemSchema);
 
-// GET: Retrieve Inventory Items
 app.get("/api/inventory", async (req, res) => {
   try {
     const items = await Item.find();
@@ -142,10 +151,8 @@ app.get("/api/inventory", async (req, res) => {
   }
 });
 
-// POST: Add New Inventory Item
 app.post("/api/inventory", async (req, res) => {
   try {
-    console.log("POST /api/inventory received:", req.body); // Debug log to check incoming data
     const newItem = new Item(req.body);
     await newItem.save();
     res.status(201).json(newItem);
@@ -154,7 +161,6 @@ app.post("/api/inventory", async (req, res) => {
   }
 });
 
-// PUT: Update Inventory Item
 app.put("/api/inventory/:id", async (req, res) => {
   try {
     const updatedItem = await Item.findByIdAndUpdate(req.params.id, req.body, { new: true });
@@ -164,7 +170,6 @@ app.put("/api/inventory/:id", async (req, res) => {
   }
 });
 
-// DELETE: Remove Inventory Item
 app.delete("/api/inventory/:id", async (req, res) => {
   try {
     await Item.findByIdAndDelete(req.params.id);
@@ -174,40 +179,55 @@ app.delete("/api/inventory/:id", async (req, res) => {
   }
 });
 
-// === Serve React frontend (after routes) ===
 if (fs.existsSync(path.join(__dirname, "../frontend/build"))) {
   app.use(express.static(path.join(__dirname, "../frontend/build")));
+  app.get("/session/:sessionId", (req, res) => {
+    res.sendFile(path.join(__dirname, "../frontend/build/index.html"));
+  });
   app.get("*", (req, res) => {
-    res.sendFile(path.join(__dirname, "../frontend/build", "index.html"));
+    res.sendFile(path.join(__dirname, "../frontend/build/index.html"));
   });
 } else {
   console.log("No build directory found in ../frontend/build; skipping static file serving.");
 }
 
-// === Socket.IO Logic ===
+const roomUsers = {};
+
 io.on("connection", (socket) => {
   console.log("🟢 A user connected");
 
   socket.on("joinRoom", ({ username, room }) => {
     socket.join(room);
-    console.log(`${username} joined room: ${room}`);
+    socket.username = username;
+    socket.room = room;
+
+    if (!roomUsers[room]) roomUsers[room] = [];
+    if (!roomUsers[room].includes(username)) {
+      roomUsers[room].push(username);
+    }
+
     socket.to(room).emit("message", {
       username: "System",
       text: `${username} has joined the chat.`,
     });
+
+    io.to(room).emit("userList", roomUsers[room]);
   });
 
-  socket.on("sendMessage", ({ username, text }) => {
-    console.log(`💬 ${username}: ${text}`);
-    io.to("battlemap").emit("message", { username, text });
+  socket.on("sendMessage", ({ username, text, room }) => {
+    io.to(room).emit("message", { username, text });
   });
 
   socket.on("disconnect", () => {
+    const { username, room } = socket;
+    if (username && room) {
+      roomUsers[room] = roomUsers[room]?.filter(u => u !== username);
+      io.to(room).emit("userList", roomUsers[room]);
+    }
     console.log("🔴 A user disconnected");
   });
 });
 
-// === Start the server with Socket.IO ===
 server.listen(PORT, () => {
   console.log(`🚀 Server running with WebSocket on http://localhost:${PORT}`);
 });
