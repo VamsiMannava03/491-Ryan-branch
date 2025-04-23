@@ -1,73 +1,47 @@
 import React, { useState, useEffect } from 'react';
 import { io } from 'socket.io-client';
 
-const socket = io('http://localhost:4000', { transports: ['websocket'] });
+const socket = io('http://localhost:5000', { transports: ['websocket'] });
 
-
-function Chat() {
-  const [username, setUsername] = useState('');
-  const [room, setRoom] = useState('battlemap');
+function Chat({ room, username }) {
   const [message, setMessage] = useState('');
   const [messages, setMessages] = useState([]);
-  const [joined, setJoined] = useState(false);
+  const [userList, setUserList] = useState([]);
 
   useEffect(() => {
-    console.log("Joining room:", username);
+    if (!room || !username) return;
+
     socket.emit('joinRoom', { username, room });
-  
+
     socket.on('message', (data) => {
-      console.log("Received message:", data); // 👈 should log when message comes back
       setMessages((prev) => [...prev, data]);
     });
-  
-    return () => socket.off('message');
-  }, [joined, username, room]);
-  
 
-  const handleJoin = (e) => {
-    e.preventDefault();
-    if (username.trim()) {
-      setJoined(true);
-    }
-  };
+    socket.on('userList', (users) => {
+      setUserList(users);
+    });
+
+    return () => {
+      socket.off('message');
+      socket.off('userList');
+    };
+  }, [room, username]);
 
   const sendMessage = (e) => {
     e.preventDefault();
     if (message.trim()) {
-      console.log("Sending:", { username, text: message }); // 👈 log this too
-      socket.emit('sendMessage', { username, text: message });
+      socket.emit('sendMessage', { username, text: message, room });
       setMessage('');
     }
   };
-  
-
-  if (!joined) {
-    return (
-      <div style={{ padding: '2rem' }}>
-        <h2>Join the Chat</h2>
-        <form onSubmit={handleJoin} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          <input
-            type="text"
-            placeholder="Enter your name"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-          />
-          <button type="submit">Join Chat</button>
-        </form>
-      </div>
-    );
-  }
 
   return (
-    <div style={{
-      width: '300px',
-      height: '100vh',
-      backgroundColor: '#f5f5f5',
-      borderLeft: '1px solid #ccc',
-      display: 'flex',
-      flexDirection: 'column',
-      padding: '10px',
-    }}>
+    <div style={{ width: '100%', height: '100%', backgroundColor: '#f5f5f5', borderLeft: '1px solid #ccc', display: 'flex', flexDirection: 'column', padding: '10px' }}>
+      <div><strong>🧑 Players in session:</strong></div>
+      <ul>
+        {userList.map((u, i) => <li key={i}>{u}</li>)}
+      </ul>
+      <hr />
       <div style={{ flex: 1, overflowY: 'auto', marginBottom: '10px' }}>
         {messages.map((msg, i) => (
           <div key={i}><strong>{msg.username}</strong>: {msg.text}</div>

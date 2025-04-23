@@ -1,4 +1,6 @@
-mport React from 'react';
+
+import React from 'react';
+
 
 // Item API functions
 export async function addItemToDatabase(newItem) {

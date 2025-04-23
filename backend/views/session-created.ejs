@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Session Created</title>
+</head>
+<body>
+  <h1>✅ Session Created!</h1>
+
+  <p><strong>Session ID:</strong> <code><%= sessionId %></code></p>
+  <p>Share this session ID with your friends so they can join you.</p>
+
+  <form action="/session/<%= sessionId %>">
+    <button type="submit">Enter Session</button>
+  </form>
+
+  <p><a href="/session-options">Back to session options</a></p>
+</body>
+</html>
