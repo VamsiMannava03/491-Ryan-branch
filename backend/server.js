@@ -14,7 +14,7 @@ const fs = require("fs");
 const cors = require("cors");
 const { v4: uuidv4 } = require("uuid");
 
-const User = require("../model/User");
+const User = require("./User");
 
 const app = express();
 
@@ -28,8 +28,7 @@ const io = new Server(server, {
   }
 });
 
-const PORT = process.env.PORT || 5000;
-const FRONTEND_URL = process.env.FRONTEND_URL || "/";
+const PORT = process.env.PORT || 4000;
 
 mongoose.connect("mongodb+srv://mannavavamsi03:Oxygen689@dungeondweller.jeulo.mongodb.net/?retryWrites=true&w=majority&appName=DungeonDweller", {
   useNewUrlParser: true,
@@ -56,17 +55,18 @@ passport.use(new LocalStrategy(User.authenticate()));
 passport.serializeUser(User.serializeUser());
 passport.deserializeUser(User.deserializeUser());
 
+// ✅ Define transporter ONCE here
 const transporter = nodemailer.createTransport({
   service: "Gmail",
   auth: {
-    user: "your@gmail.com",
-    pass: "your-app-password"
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS
   }
 });
 
-app.get("/", (req, res) => res.render("home", { user: req.user }));
-app.get("/register", (req, res) => res.render("register"));
-app.get("/login", (req, res) => res.render("login", { query: req.query || {} }));
+app.get("/", (req, res) => res.render("home", { user: req.user || null }));
+app.get("/register", (req, res) => res.render("register", { user: req.user || null }));
+app.get("/login", (req, res) => res.render("login", { user: req.user || null, query: req.query || {} }));
 
 app.post("/register", (req, res) => {
   const { username, email, password } = req.body;
@@ -75,17 +75,27 @@ app.post("/register", (req, res) => {
   const newUser = new User({ username, email, verificationToken: token, isVerified: false });
 
   User.register(newUser, password, (err, user) => {
-    if (err) return res.status(400).render("register", { error: err.message });
+    if (err) {
+      return res.status(400).render("register", {
+        error: err.message,
+        user: req.user || null
+      });
+    }
 
     const mailOptions = {
       from: process.env.EMAIL_USER,
       to: email,
       subject: "Account Verification",
-      text: `Hello ${username},\n\nVerify your account:\n\n${req.protocol}://${req.get("host")}/verify?token=${token}&email=${email}\n`
+      text: `Hello ${username},\n\nPlease verify your account:\n\n${req.protocol}://${req.get("host")}/verify?token=${token}&email=${email}`
     };
 
-    transporter.sendMail(mailOptions, (error) => {
-      if (error) return res.status(500).json({ error: "Error sending verification email." });
+    transporter.sendMail(mailOptions, (error, info) => {
+      if (error) {
+        console.error("✉️ Nodemailer error:", error);
+        return res.status(500).json({ error: "Error sending verification email." });
+      }
+
+      console.log("📨 Email sent:", info.response);
       res.status(200).json({ message: `Verification email sent to ${email}` });
     });
   });
