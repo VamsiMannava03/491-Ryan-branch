@@ -1,0 +1,10 @@
+<h1>This is home page</h1>
+
+<% if (user) { %>
+  <p>Welcome, <%= user.username %>!</p>
+  <li><a href="/session-options">Create / Join a Session</a></li>
+  <li><a href="/logout">Logout</a></li>
+<% } else { %>
+  <li><a href="/register">Sign up!!</a></li>
+  <li><a href="/login">Login</a></li>
+<% } %>

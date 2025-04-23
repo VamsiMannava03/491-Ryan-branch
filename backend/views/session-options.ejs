@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Session Options</title>
+</head>
+<body>
+  <h1>Welcome, <%= username %>!</h1>
+
+  <form action="/create-session" method="POST">
+    <button type="submit">➕ Create New Session</button>
+  </form>
+
+  <hr />
+
+  <form action="/join-session" method="GET">
+    <label for="sessionId">Join Existing Session</label>
+    <input type="text" name="sessionId" required />
+    <button type="submit">Join</button>
+  </form>
+
+  <p><a href="/logout">Logout</a></p>
+</body>
+</html>
