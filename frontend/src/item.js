@@ -1,12 +1,10 @@
-
 import React from 'react';
-
 
 // Item API functions
 export async function addItemToDatabase(newItem) {
   console.log("Sending POST request with:", newItem);
   try {
-    const response = await fetch('http://localhost:5000/api/inventory', {
+    const response = await fetch('http://localhost:4000/api/inventory', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(newItem)
@@ -24,7 +22,7 @@ export async function addItemToDatabase(newItem) {
 
 export async function updateItemInDatabase(itemId, updatedData) {
   try {
-    const response = await fetch(`http://localhost:5000/api/inventory/${itemId}`, {
+    const response = await fetch(`http://localhost:4000/api/inventory/${itemId}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(updatedData)
@@ -42,7 +40,7 @@ export async function updateItemInDatabase(itemId, updatedData) {
 
 export async function deleteItemFromDatabase(itemId) {
   try {
-    const response = await fetch(`http://localhost:5000/api/inventory/${itemId}`, {
+    const response = await fetch(`http://localhost:4000/api/inventory/${itemId}`, {
       method: 'DELETE'
     });
     if (!response.ok) {
@@ -56,11 +54,11 @@ export async function deleteItemFromDatabase(itemId) {
   }
 }
 
-// UI Components for Items remain the same
+// UI Components
 export function AddItemForm({ itemName, setItemName, itemQuantity, setItemQuantity, handleAddItem }) {
   return (
-    <div style={{ marginTop: '20px' }}>
-      <h3 className="fantasy-title" style={{ fontSize: '18px', margin: '0 0 10px 0' }}>
+    <div>
+      <h3 className="fantasy-title" style={{ fontFamily: 'Cinzel, serif', fontSize: '18px', margin: '0 0 10px 0' }}>
         Add an Item
       </h3>
       <div>
@@ -69,17 +67,17 @@ export function AddItemForm({ itemName, setItemName, itemQuantity, setItemQuanti
           placeholder="Item Name"
           value={itemName}
           onChange={(e) => setItemName(e.target.value)}
-          style={{ marginRight: '10px', padding: '5px' }}
+          style={{ marginRight: '10px', padding: '5px', width: '50%' }}
         />
         <input
           type="number"
           placeholder="Quantity"
           value={itemQuantity}
           onChange={(e) => setItemQuantity(e.target.value)}
-          style={{ marginRight: '10px', padding: '5px' }}
+          style={{ marginRight: '10px', padding: '5px', width: '25%' }}
         />
-        <button onClick={handleAddItem} style={{ padding: '5px 10px' }}>
-          Add Item
+        <button onClick={handleAddItem} style={{ padding: '5px 10px', display: 'block', margin: '10px auto' }}>
+        Add
         </button>
       </div>
     </div>
@@ -94,11 +92,11 @@ export function InventoryGrid({ inventory, handleUseItem }) {
         border: '1px solid #ccc',
         padding: '20px',
         boxSizing: 'border-box',
-        height: '600px',
+        height: '100%',
         overflowY: 'auto'
       }}
     >
-      <h3 className="fantasy-title" style={{ fontSize: '18px', margin: '0 0 10px 0' }}>
+      <h3 className="fantasy-title" style={{ fontFamily: 'Cinzel, serif', fontSize: '18px', margin: '0 0 10px 0' }}>
         Inventory
       </h3>
       <div
@@ -122,8 +120,8 @@ export function InventoryGrid({ inventory, handleUseItem }) {
               aspectRatio: '1'
             }}
           >
-            <div style={{ fontWeight: 'bold' }}>{item.name}</div>
-            <div>Qty: {item.quantity}</div>
+            <div style={{ fontWeight: 'bold', fontFamily: 'Cinzel, serif' }}>{item.name}</div>
+            <div style={{ fontFamily: 'Cinzel, serif' }}>Qty: {item.quantity}</div>
             <button
               onClick={() => handleUseItem(index)}
               style={{ marginTop: '5px', padding: '2px 5px' }}
