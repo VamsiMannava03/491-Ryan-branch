@@ -10,10 +10,8 @@ function getRandomColor(username) {
   return colors[Math.abs(hash) % colors.length];
 }
 
-function Chat({ room, username }) {
+function Chat({ room, username, messages, setMessages, userList, setUserList }) {
   const [message, setMessage] = useState('');
-  const [messages, setMessages] = useState([]);
-  const [userList, setUserList] = useState([]);
 
   const userColors = useMemo(() => {
     const colorMap = {};
@@ -40,7 +38,7 @@ function Chat({ room, username }) {
       socket.off('message');
       socket.off('userList');
     };
-  }, [room, username]);
+  }, [room, username, setMessages, setUserList]);
 
   const sendMessage = (e) => {
     e.preventDefault();
