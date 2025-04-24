@@ -1,29 +1,58 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useDrop } from 'react-dnd';
+import { io } from 'socket.io-client';
 import Icon from './Icon';
+import socket from './socket';
 
-const BattleMap = ({ mapImage, icons, setIcons }) => {  //contains the map image and icons for movement
+
+
+
+const BattleMap = ({ mapImage, icons, setIcons }) => {
+  const room = window.location.pathname.split("/").pop(); // sessionId from URL
+
   const [, drop] = useDrop({
     accept: 'ICON',
     drop: (item, monitor) => {
-      const delta = monitor.getDifferenceFromInitialOffset(); // math used for moving the icon on the map
+      const delta = monitor.getDifferenceFromInitialOffset();
       if (!delta) return;
+
       const newLeft = Math.round(item.left + delta.x);
       const newTop = Math.round(item.top + delta.y);
-      
-      setIcons(prevIcons =>                                 //update icons state with new position
+
+      // 1. Update local position
+      setIcons(prevIcons =>
         prevIcons.map(icon =>
-          icon.id === item.id
-            ? { ...icon, left: newLeft, top: newTop }
-            : icon
+          icon.id === item.id ? { ...icon, left: newLeft, top: newTop } : icon
         )
       );
+
+      // 2. Emit icon move to others in room
+      socket.emit("moveIcon", {
+        room,
+        iconId: item.id,
+        newPosition: { left: newLeft, top: newTop }
+      });
     },
   });
 
+  // 3. Listen for incoming icon movement
+  useEffect(() => {
+    socket.on("iconMoved", ({ iconId, newPosition }) => {
+      setIcons(prevIcons =>
+        prevIcons.map(icon =>
+          icon.id === iconId ? { ...icon, ...newPosition } : icon
+        )
+      );
+    });
+
+    return () => {
+      socket.off("iconMoved");
+    };
+  }, [setIcons]);
+
   return (
     <div
-      ref={drop} //This is used for the drop ref
+      ref={drop}
       style={{
         position: 'relative',
         width: '800px',
@@ -34,7 +63,7 @@ const BattleMap = ({ mapImage, icons, setIcons }) => {  //contains the map image
         overflow: 'hidden',
       }}
     >
-      <img           //display battle map image
+      <img
         src={mapImage}
         alt="Battle Map"
         style={{
@@ -44,7 +73,7 @@ const BattleMap = ({ mapImage, icons, setIcons }) => {  //contains the map image
           display: 'block',
         }}
       />
-      {icons.map(icon => (         //rendering icons
+      {icons.map(icon => (
         <Icon key={icon.id} icon={icon} />
       ))}
     </div>

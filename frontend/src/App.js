@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
+import socket from './socket'; // ✅ shared socket import
+
 import BattleMap from './BattleMap';
 import DiceRoller from './Dice';
 import Chat from './Chat';
@@ -24,6 +26,7 @@ function App() {
   const [itemName, setItemName] = useState('');
   const [itemQuantity, setItemQuantity] = useState('');
 
+  // Prompt for username on initial load
   useEffect(() => {
     if (!username) {
       const entered = prompt("Enter your name for the session:");
@@ -34,6 +37,16 @@ function App() {
     }
   }, [username]);
 
+  // Join the socket room once username and sessionId are ready
+  useEffect(() => {
+    if (username && sessionId) {
+      console.log("📡 EMITTING joinRoom!", { username, sessionId }); // Add this
+      socket.emit("joinRoom", { username, room: sessionId });
+    }
+  }, [username, sessionId]);
+  
+
+  // Load inventory for session
   useEffect(() => {
     fetch(`http://localhost:5000/api/inventory?sessionId=${sessionId}`)
       .then(res => res.json())

@@ -1,3 +1,4 @@
+// server.js (inside /backend)
 require("dotenv").config();
 const express = require("express");
 const mongoose = require("mongoose");
@@ -17,29 +18,31 @@ const { v4: uuidv4 } = require("uuid");
 const User = require("./User");
 
 const app = express();
-
-app.use(cors({ origin: "http://localhost:3000" }));
-
 const server = http.createServer(app);
-const io = new Server(server, {
-  cors: {
-    origin: "http://localhost:3000",
-    methods: ["GET", "POST"]
-  }
-});
+const io = new Server(server);
 
 const PORT = process.env.PORT || 4000;
 
-mongoose.connect("mongodb+srv://mannavavamsi03:Oxygen689@dungeondweller.jeulo.mongodb.net/?retryWrites=true&w=majority&appName=DungeonDweller", {
+
+
+mongoose.set('strictQuery', true);
+
+mongoose.connect(process.env.MONGO_URI, {
   useNewUrlParser: true,
   useUnifiedTopology: true
-}).then(() => {
+})
+.then(() => {
   console.log("✅ Connected to MongoDB Atlas");
-}).catch(err => {
+})
+.catch(err => {
   console.error("❌ MongoDB connection error:", err);
 });
 
+
+
+
 app.set("view engine", "ejs");
+app.use(cors());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
 app.use(session({
@@ -47,7 +50,6 @@ app.use(session({
   resave: false,
   saveUninitialized: false
 }));
-
 app.use(passport.initialize());
 app.use(passport.session());
 
@@ -55,7 +57,6 @@ passport.use(new LocalStrategy(User.authenticate()));
 passport.serializeUser(User.serializeUser());
 passport.deserializeUser(User.deserializeUser());
 
-// ✅ Define transporter ONCE here
 const transporter = nodemailer.createTransport({
   service: "Gmail",
   auth: {
@@ -71,16 +72,10 @@ app.get("/login", (req, res) => res.render("login", { user: req.user || null, qu
 app.post("/register", (req, res) => {
   const { username, email, password } = req.body;
   const token = crypto.randomBytes(16).toString("hex");
-
   const newUser = new User({ username, email, verificationToken: token, isVerified: false });
 
   User.register(newUser, password, (err, user) => {
-    if (err) {
-      return res.status(400).render("register", {
-        error: err.message,
-        user: req.user || null
-      });
-    }
+    if (err) return res.status(400).render("register", { error: err.message, user: req.user || null });
 
     const mailOptions = {
       from: process.env.EMAIL_USER,
@@ -90,12 +85,7 @@ app.post("/register", (req, res) => {
     };
 
     transporter.sendMail(mailOptions, (error, info) => {
-      if (error) {
-        console.error("✉️ Nodemailer error:", error);
-        return res.status(500).json({ error: "Error sending verification email." });
-      }
-
-      console.log("📨 Email sent:", info.response);
+      if (error) return res.status(500).json({ error: "Error sending email." });
       res.status(200).json({ message: `Verification email sent to ${email}` });
     });
   });
@@ -104,7 +94,7 @@ app.post("/register", (req, res) => {
 app.get("/verify", (req, res) => {
   const { token, email } = req.query;
   User.findOne({ email, verificationToken: token }, (err, user) => {
-    if (!user) return res.status(400).json({ error: "Invalid or expired verification link." });
+    if (!user) return res.status(400).json({ error: "Invalid or expired token." });
 
     user.isVerified = true;
     user.verificationToken = undefined;
@@ -146,11 +136,8 @@ app.get("/logout", (req, res) => {
   res.redirect("/");
 });
 
-const itemSchema = new mongoose.Schema({
-  name: String,
-  quantity: Number
-});
-const Item = mongoose.model('Item', itemSchema);
+const itemSchema = new mongoose.Schema({ name: String, quantity: Number });
+const Item = mongoose.model("Item", itemSchema);
 
 app.get("/api/inventory", async (req, res) => {
   try {
@@ -189,22 +176,22 @@ app.delete("/api/inventory/:id", async (req, res) => {
   }
 });
 
-if (fs.existsSync(path.join(__dirname, "../frontend/build"))) {
-  app.use(express.static(path.join(__dirname, "../frontend/build")));
-  app.get("/session/:sessionId", (req, res) => {
-    res.sendFile(path.join(__dirname, "../frontend/build/index.html"));
-  });
-  app.get("*", (req, res) => {
-    res.sendFile(path.join(__dirname, "../frontend/build/index.html"));
-  });
-} else {
-  console.log("No build directory found in ../frontend/build; skipping static file serving.");
+// Serve built React frontend
+const buildPath = path.join(__dirname, "../frontend/build");
+if (fs.existsSync(buildPath)) {
+  app.use(express.static(buildPath));
+  app.get("/session/:sessionId", (req, res) => res.sendFile(path.join(buildPath, "index.html")));
+  app.get("*", (req, res) => res.sendFile(path.join(buildPath, "index.html")));
 }
 
+// WebSocket logic
 const roomUsers = {};
-
 io.on("connection", (socket) => {
   console.log("🟢 A user connected");
+
+  socket.onAny((event, ...args) => {
+    console.log(`📦 Incoming event: ${event}`, args);
+  });
 
   socket.on("joinRoom", ({ username, room }) => {
     socket.join(room);
@@ -216,12 +203,12 @@ io.on("connection", (socket) => {
       roomUsers[room].push(username);
     }
 
-    socket.to(room).emit("message", {
-      username: "System",
-      text: `${username} has joined the chat.`,
-    });
-
+    console.log(`🧩 joinRoom received from ${username} in ${room}`);
     io.to(room).emit("userList", roomUsers[room]);
+  });
+
+  socket.on("moveIcon", ({ room, iconId, newPosition }) => {
+    socket.to(room).emit("iconMoved", { iconId, newPosition });
   });
 
   socket.on("sendMessage", ({ username, text, room }) => {
@@ -232,12 +219,12 @@ io.on("connection", (socket) => {
     const { username, room } = socket;
     if (username && room) {
       roomUsers[room] = roomUsers[room]?.filter(u => u !== username);
+      console.log(`🔴 ${username} left room ${room}`);
       io.to(room).emit("userList", roomUsers[room]);
     }
-    console.log("🔴 A user disconnected");
   });
 });
 
 server.listen(PORT, () => {
-  console.log(`🚀 Server running with WebSocket on http://localhost:${PORT}`);
+  console.log(`🚀 Server running on http://localhost:${PORT}`);
 });
