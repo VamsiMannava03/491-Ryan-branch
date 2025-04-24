@@ -1,12 +1,27 @@
-import React, { useState, useEffect } from 'react';
-import { io } from 'socket.io-client';
+import React, { useState, useEffect, useMemo } from 'react';
+import socket from './socket';
 
-const socket = io('http://localhost:5000', { transports: ['websocket'] });
+function getRandomColor(username) {
+  const colors = ["#e6194b", "#3cb44b", "#ffe119", "#4363d8", "#f58231", "#911eb4", "#46f0f0", "#f032e6"];
+  let hash = 0;
+  for (let i = 0; i < username.length; i++) {
+    hash = username.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return colors[Math.abs(hash) % colors.length];
+}
 
 function Chat({ room, username }) {
   const [message, setMessage] = useState('');
   const [messages, setMessages] = useState([]);
   const [userList, setUserList] = useState([]);
+
+  const userColors = useMemo(() => {
+    const colorMap = {};
+    userList.forEach(user => {
+      colorMap[user] = getRandomColor(user);
+    });
+    return colorMap;
+  }, [userList]);
 
   useEffect(() => {
     if (!room || !username) return;
@@ -36,27 +51,35 @@ function Chat({ room, username }) {
   };
 
   return (
-    <div style={{ width: '100%', height: '100%', backgroundColor: '#f5f5f5', borderLeft: '1px solid #ccc', display: 'flex', flexDirection: 'column', padding: '10px' }}>
-      <div><strong>🧑 Players in session:</strong></div>
-      <ul>
-        {userList.map((u, i) => <li key={i}>{u}</li>)}
-      </ul>
-      <hr />
-      <div style={{ flex: 1, overflowY: 'auto', marginBottom: '10px' }}>
-        {messages.map((msg, i) => (
-          <div key={i}><strong>{msg.username}</strong>: {msg.text}</div>
-        ))}
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100%' }}>
+      <div style={{ flexGrow: 1, overflowY: 'auto', backgroundColor: '#f5f5f5', padding: '10px' }}>
+        <div>
+          <strong>🧑 Players in session:</strong>
+          <ul>
+            {userList.map((u, i) => <li key={i}>{u}</li>)}
+          </ul>
+          <hr />
+        </div>
+        <div>
+          {messages.map((msg, i) => (
+            <div key={i}>
+              <strong style={{ color: userColors[msg.username] }}>{msg.username}</strong>: {msg.text}
+            </div>
+          ))}
+        </div>
       </div>
-      <form onSubmit={sendMessage} style={{ display: 'flex' }}>
-        <input
-          type="text"
-          value={message}
-          onChange={(e) => setMessage(e.target.value)}
-          style={{ flex: 1, marginRight: '5px', padding: '5px' }}
-          placeholder="Type a message..."
-        />
-        <button type="submit">Send</button>
-      </form>
+      <div style={{ borderTop: '1px solid #ccc', padding: '10px', backgroundColor: '#f5f5f5' }}>
+        <form onSubmit={sendMessage} style={{ display: 'flex' }}>
+          <input
+            type="text"
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+            style={{ flex: 1, marginRight: '5px', padding: '5px' }}
+            placeholder="Type a message..."
+          />
+          <button type="submit">Send</button>
+        </form>
+      </div>
     </div>
   );
 }

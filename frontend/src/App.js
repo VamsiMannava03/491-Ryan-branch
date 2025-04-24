@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import socket from './socket'; // ✅ added for socket functionality
+import socket from './socket';
 
 import BattleMap from './BattleMap';
 import Chat from './Chat';
@@ -34,14 +34,6 @@ function App() {
       }
     }
   }, [username]);
-
-  // 📡 joinRoom with socket.io
-  useEffect(() => {
-    if (username && sessionId) {
-      console.log("📡 EMITTING joinRoom!", { username, sessionId });
-      socket.emit("joinRoom", { username, room: sessionId });
-    }
-  }, [username, sessionId]);
 
   const fetchInventory = async () => {
     const res = await fetch(`http://localhost:4000/api/inventory?sessionId=${sessionId}`);
@@ -124,9 +116,11 @@ function App() {
               </div>
             )}
             {activeTab === 'chat' && (
-              <div style={{ paddingTop: '10px' }}>
-                <h3 style={{ fontFamily: 'Cinzel, serif' }}>💬 Chat</h3>
-                <Chat room={sessionId} username={username} />
+              <div style={{ display: 'flex', flexDirection: 'column', flexGrow: 1 }}>
+                <h3 style={{ fontFamily: 'Cinzel, serif', paddingTop: '10px' }}>💬 Chat</h3>
+                <div style={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
+                  <Chat room={sessionId} username={username} />
+                </div>
               </div>
             )}
             {activeTab === 'character' && (
