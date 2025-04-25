@@ -1,10 +1,30 @@
-<h1>This is home page</h1>
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Dungeon Dweller</title>
+  <link rel="stylesheet" href="/style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Eagle+Lake&display=swap" rel="stylesheet">
 
-<% if (user) { %>
-  <p>Welcome, <%= user.username %>!</p>
-  <li><a href="/session-options">Create / Join a Session</a></li>
-  <li><a href="/logout">Logout</a></li>
-<% } else { %>
-  <li><a href="/register">Sign up!!</a></li>
-  <li><a href="/login">Login</a></li>
-<% } %>
+
+</head>
+<body>
+  <img src="Dragons.png" alt="Dragon" class="dragon-background">
+
+  <div class="container">
+    <img src="favicon.ico.png" alt="a logo">
+    <h1>Dungeon Dweller</h1>
+    <% if (user) { %>
+      <p>Welcome, <%= user.username %>!</p>
+      <ul class="link-list">
+        <li class="link-block"><a href="/session-options">Create / Join a Session</a></li>
+        <li class="link-block"><a href="/logout">Logout</a></li>
+      </ul>
+    <% } else { %>
+      <ul class="link-list">
+        <li class="link-block"><a href="/register">Sign Up</a></li>
+        <li class="link-block"><a href="/login">Login</a></li>
+      </ul>
+    <% } %>
+  </div>
+</body>
+</html>
