@@ -1,0 +1,119 @@
+body {
+    background-image: linear-gradient(#0b0b1f, #5e1a1a);
+    background-size: cover;
+    background-repeat: no-repeat;
+    background-position: center;
+    background-attachment: fixed;
+    color: #f8f8f2;
+    
+  }
+
+  .dragon-background {
+    position: absolute;
+    top: 70px; 
+    left: 53%;
+    transform: translateX(-50%);
+    width: 1000px; 
+    height: auto;
+    opacity: 0.8;
+    pointer-events: none; 
+    z-index: 10; 
+  }
+  
+  
+  h1, h2, h3 {
+    color: #faf9f6;
+    font-size: 40px;
+    font-family: 'Eagle Lake', cursive;
+    margin-top: 5px;
+    text-shadow: 1px 2px 1px rgb(49, 36, 36);
+  }
+  
+  a {
+    color: #ff4d4d;
+    text-decoration: none;
+    padding: 8px;
+    margin: 5px 0;
+    border-radius: 1px;
+  }
+  
+  a:hover {
+    text-decoration: underline;
+  }
+  
+  input, button {
+    background-color: #1f0b1082;
+    color: #f8f8f2;
+    border: 1px solid #e9c88c;
+    padding: 8px;
+    margin: 5px 0;
+    border-radius: 5px;
+    width: 250px;
+    font-family: 'Eagle Lake', cursive;
+  }
+  
+  button {
+    background-color: #7a1e1e;
+    font-weight: bold;
+    width: 100px;
+    box-shadow: 0 0 8px rgba(255, 77, 77, 0.5);
+  }
+  
+  button:hover {
+    background-color: #ff4d4d;
+  }
+
+  .container {
+    max-width: 500px;
+    margin: 100px auto;
+    background-color: rgba(26, 16, 16, 0.51);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    color: ;
+    padding: 100px;
+    border-radius: 10px;
+    text-align: center;
+    font-family: 'Eagle Lake', cursive;
+    position: relative;
+    z-index: 1;        
+  }
+  
+  
+  .container img{
+    width: 150px;
+    height: 150px;
+  }
+
+.link-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+  
+  .link-block {
+    background-image: linear-gradient(#571717, #1f0b10);
+    border: 1px solid #faf9f6;
+    border-radius: 20px;
+    padding: 5px;
+    margin: auto;
+    margin-bottom: 10px;
+    text-align: center;
+    font-family: 'Eagle Lake';
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    width: 300px
+  }
+  
+  .link-block:hover {
+    transform: scale(1.03);
+    box-shadow: 0 0 10px rgba(255, 77, 77, 0.5);
+  }
+  
+  .link-block a {
+    color: #ffffff;
+    text-decoration: none;
+    font-size: 1.3rem;
+  }
+  
+  .link-block a:hover {
+    text-shadow: 0 0 6px #ff4d4d;
+  }
