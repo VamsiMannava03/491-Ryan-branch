@@ -1,4 +1,3 @@
-// server.js (inside /backend)
 require("dotenv").config();
 const express = require("express");
 const mongoose = require("mongoose");
@@ -20,21 +19,14 @@ const User = require("./User");
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
-
 const PORT = process.env.PORT || 4000;
 
 mongoose.set('strictQuery', true);
-
 mongoose.connect(process.env.MONGO_URI, {
   useNewUrlParser: true,
   useUnifiedTopology: true
-})
-.then(() => {
-  console.log("✅ Connected to MongoDB Atlas");
-})
-.catch(err => {
-  console.error("❌ MongoDB connection error:", err);
-});
+}).then(() => console.log("✅ Connected to MongoDB Atlas"))
+  .catch(err => console.error("❌ MongoDB connection error:", err));
 
 app.set("view engine", "ejs");
 app.use(cors());
@@ -60,6 +52,7 @@ const transporter = nodemailer.createTransport({
   }
 });
 
+// Routes
 app.get("/", (req, res) => res.render("home", { user: req.user || null }));
 app.get("/register", (req, res) => res.render("register", { user: req.user || null }));
 app.get("/login", (req, res) => res.render("login", { user: req.user || null, query: req.query || {} }));
@@ -131,7 +124,7 @@ app.get("/logout", (req, res) => {
   res.redirect("/");
 });
 
-// Inventory
+// Inventory API
 const itemSchema = new mongoose.Schema({ name: String, quantity: Number });
 const Item = mongoose.model("Item", itemSchema);
 
@@ -172,7 +165,7 @@ app.delete("/api/inventory/:id", async (req, res) => {
   }
 });
 
-// Character Sheet (inline model)
+// Character Sheet API
 const Character = mongoose.model("Character", new mongoose.Schema({
   user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, unique: true },
   stats: Object,
@@ -200,7 +193,7 @@ app.post('/api/character', async (req, res) => {
   res.json(updated);
 });
 
-// Serve built React frontend
+// Serve React build
 const buildPath = path.join(__dirname, "../frontend/build");
 if (fs.existsSync(buildPath)) {
   app.use(express.static(buildPath));
@@ -208,46 +201,89 @@ if (fs.existsSync(buildPath)) {
   app.get("*", (req, res) => res.sendFile(path.join(buildPath, "index.html")));
 }
 
-// WebSocket logic
 const roomUsers = {};
+const roomHosts = {};
+const kickedUsers = {};
+
 io.on("connection", (socket) => {
-  console.log("🟢 A user connected");
-
-  socket.onAny((event, ...args) => {
-    console.log(`📦 Incoming event: ${event}`, args);
-  });
-
   socket.on("joinRoom", ({ username, room }) => {
+    if (kickedUsers[room]?.includes(username)) {
+      socket.emit("kicked");
+      return;
+    }
+
     socket.join(room);
     socket.username = username;
     socket.room = room;
 
     if (!roomUsers[room]) roomUsers[room] = [];
-    if (!roomUsers[room].includes(username)) {
-      roomUsers[room].push(username);
+    if (!roomUsers[room].includes(username)) roomUsers[room].push(username);
+
+    if (roomUsers[room].length === 1) {
+      roomHosts[room] = username;
     }
 
-    console.log(`🧩 joinRoom received from ${username} in ${room}`);
     io.to(room).emit("userList", roomUsers[room]);
+    io.to(room).emit("hostAssigned", roomHosts[room]);
+    io.to(room).emit("kickedUsersList", kickedUsers[room] || []);
   });
 
-  socket.on("moveIcon", ({ room, iconId, newPosition }) => {
-    socket.to(room).emit("iconMoved", { iconId, newPosition });
+  socket.on("kickUser", ({ room, target }) => {
+    if (socket.username === roomHosts[room]) {
+      const sockets = Array.from(io.sockets.sockets.values());
+      const targetSocket = sockets.find(s => s.username === target && s.room === room);
+
+      if (targetSocket) {
+        targetSocket.emit("kicked");
+        targetSocket.leave(room);
+        targetSocket.disconnect(true);
+      }
+
+      roomUsers[room] = roomUsers[room].filter(u => u !== target);
+      if (!kickedUsers[room]) kickedUsers[room] = [];
+      if (!kickedUsers[room].includes(target)) kickedUsers[room].push(target);
+
+      io.to(room).emit("userList", roomUsers[room]);
+      io.to(room).emit("kickedUsersList", kickedUsers[room]);
+    }
+  });
+
+  socket.on("unkickUser", ({ room, target }) => {
+    if (socket.username === roomHosts[room]) {
+      if (kickedUsers[room]) {
+        kickedUsers[room] = kickedUsers[room].filter(u => u !== target);
+      }
+      io.to(room).emit("kickedUsersList", kickedUsers[room]);
+    }
   });
 
   socket.on("sendMessage", ({ username, text, room }) => {
+    console.log(`💬 ${username} in ${room}: ${text}`);
     io.to(room).emit("message", { username, text });
+  });
+
+  socket.on("moveIcon", ({ room, iconId, newPosition }) => {
+    console.log(`🧲 ${socket.username} moved icon ${iconId} in ${room}`);
+    socket.to(room).emit("iconMoved", { iconId, newPosition });
   });
 
   socket.on("disconnect", () => {
     const { username, room } = socket;
     if (username && room) {
       roomUsers[room] = roomUsers[room]?.filter(u => u !== username);
-      console.log(`🔴 ${username} left room ${room}`);
+      if (roomHosts[room] === username) {
+        roomHosts[room] = roomUsers[room]?.[0] || null;
+        io.to(room).emit("hostAssigned", roomHosts[room]);
+      }
+      if (kickedUsers[room]) {
+        kickedUsers[room] = kickedUsers[room].filter(u => u !== username);
+      }
       io.to(room).emit("userList", roomUsers[room]);
+      io.to(room).emit("kickedUsersList", kickedUsers[room]);
     }
   });
 });
+
 
 server.listen(PORT, () => {
   console.log(`🚀 Server running on http://localhost:${PORT}`);
