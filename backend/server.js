@@ -23,8 +23,6 @@ const io = new Server(server);
 
 const PORT = process.env.PORT || 4000;
 
-
-
 mongoose.set('strictQuery', true);
 
 mongoose.connect(process.env.MONGO_URI, {
@@ -37,9 +35,6 @@ mongoose.connect(process.env.MONGO_URI, {
 .catch(err => {
   console.error("❌ MongoDB connection error:", err);
 });
-
-
-
 
 app.set("view engine", "ejs");
 app.use(cors());
@@ -136,6 +131,7 @@ app.get("/logout", (req, res) => {
   res.redirect("/");
 });
 
+// Inventory
 const itemSchema = new mongoose.Schema({ name: String, quantity: Number });
 const Item = mongoose.model("Item", itemSchema);
 
@@ -174,6 +170,34 @@ app.delete("/api/inventory/:id", async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
+});
+
+// Character Sheet (inline model)
+const Character = mongoose.model("Character", new mongoose.Schema({
+  user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, unique: true },
+  stats: Object,
+  saves: Object,
+  skills: Object,
+  armorClass: Number,
+  initiative: Number,
+  speed: Number,
+  hitPoints: String,
+}));
+
+app.get('/api/character', async (req, res) => {
+  if (!req.isAuthenticated()) return res.status(401).json({ error: "Not logged in" });
+  const character = await Character.findOne({ user: req.user._id });
+  res.json(character || {});
+});
+
+app.post('/api/character', async (req, res) => {
+  if (!req.isAuthenticated()) return res.status(401).json({ error: "Not logged in" });
+  const updated = await Character.findOneAndUpdate(
+    { user: req.user._id },
+    { ...req.body, user: req.user._id },
+    { upsert: true, new: true }
+  );
+  res.json(updated);
 });
 
 // Serve built React frontend
