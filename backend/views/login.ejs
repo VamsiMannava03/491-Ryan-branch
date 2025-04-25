@@ -1,27 +1,29 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta charset="UTF-8">
-  <title>Login</title>
+  <title>Login - Dungeon Dweller</title>
+  <link rel="stylesheet" href="/style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Eagle+Lake&display=swap" rel="stylesheet">
 </head>
 <body>
-  <h1>Login</h1>
+  <img src="Dragons.png" alt="Dragon" class="dragon-background">
+  <div class="container">
+    <h1>Login</h1>
+    <form action="/login" method="POST">
+      <div>
+        <label for="username">Username</label><br>
+        <input type="text" name="username" required>
+      </div>
+      <div style="margin-top: 15px;">
+        <label for="password">Password</label><br>
+        <input type="password" name="password" required>
+      </div>
+      <div style="margin-top: 25px;">
+        <button type="submit">Log In</button>
+      </div>
+    </form>
+    <p style="margin-top: 20px;">Don’t have an account? <a href="/register">Register here</a></p>
+  </div>
 
-  <% if (query && query.error === 'notverified') { %>
-    <p style="color:red;">⚠️ Please verify your email before logging in.</p>
-  <% } %>
-
-  <% if (query && query.message) { %>
-    <p style="color:green;"><%= query.message %></p>
-  <% } %>
-
-  <form action="/login" method="POST">
-    <input type="text" name="username" placeholder="Username" required />
-    <input type="password" name="password" placeholder="Password" required />
-    <button type="submit">Login</button>
-  </form>
-
-  <p>Don't have an account? <a href="/register">Register</a></p>
-  <p><a href="/">← Back to Home</a></p>
 </body>
 </html>
