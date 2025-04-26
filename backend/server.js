@@ -122,6 +122,13 @@ app.post("/create-session", (req, res) => {
   res.render("session-created", { sessionId });
 });
 
+app.get("/join-session", (req, res) => {
+  const { sessionId } = req.query;
+  if (!sessionId || sessionId.length < 6) return res.status(400).send("Invalid session ID");
+  res.redirect(`/session/${sessionId}`);
+});
+
+
 app.get("/logout", (req, res) => {
   req.logout(() => {});
   res.redirect("/");
@@ -195,6 +202,7 @@ app.post('/api/character', async (req, res) => {
   );
   res.json(updated);
 });
+
 
 // -------------------------
 // React build ONLY for /session/:sessionId
