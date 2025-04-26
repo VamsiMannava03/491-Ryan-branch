@@ -29,11 +29,9 @@ mongoose.connect(process.env.MONGO_URI, {
 }).then(() => console.log("✅ Connected to MongoDB Atlas"))
   .catch(err => console.error("❌ MongoDB connection error:", err));
 
-// Express setup
+// View engine and static public assets
 app.set("view engine", "ejs");
-
-// Serve static files from public (for CSS, images, etc.)
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname, 'public'))); // Serve style.css, Dragons.png, etc.
 
 app.use(cors());
 app.use(bodyParser.urlencoded({ extended: true }));
@@ -50,7 +48,6 @@ passport.use(new LocalStrategy(User.authenticate()));
 passport.serializeUser(User.serializeUser());
 passport.deserializeUser(User.deserializeUser());
 
-// Nodemailer transporter
 const transporter = nodemailer.createTransport({
   service: "Gmail",
   auth: {
@@ -59,9 +56,14 @@ const transporter = nodemailer.createTransport({
   }
 });
 
+// -------------------------
 // EJS Web Routes
+// -------------------------
+
 app.get("/", (req, res) => res.render("home", { user: req.user || null }));
+
 app.get("/register", (req, res) => res.render("register", { user: req.user || null }));
+
 app.get("/login", (req, res) => res.render("login", { user: req.user || null, query: req.query || {} }));
 
 app.post("/register", (req, res) => {
@@ -118,12 +120,6 @@ app.get("/session-options", (req, res) => {
 app.post("/create-session", (req, res) => {
   const sessionId = uuidv4();
   res.render("session-created", { sessionId });
-});
-
-app.get("/join-session", (req, res) => {
-  const { sessionId } = req.query;
-  if (!sessionId || sessionId.length < 6) return res.status(400).send("Invalid session ID");
-  res.redirect(`/session/${sessionId}`);
 });
 
 app.get("/logout", (req, res) => {
@@ -200,17 +196,22 @@ app.post('/api/character', async (req, res) => {
   res.json(updated);
 });
 
-// React build for session pages only
+// -------------------------
+// React build ONLY for /session/:sessionId
+// -------------------------
 const buildPath = path.join(__dirname, "../frontend/build");
 if (fs.existsSync(buildPath)) {
-  app.use('/session', express.static(buildPath));
-  
+  app.use(express.static(buildPath));
+
+
   app.get("/session/:sessionId", (req, res) => {
     res.sendFile(path.join(buildPath, "index.html"));
   });
 }
 
-// Socket.io logic
+// -------------------------
+// Socket.IO logic (unchanged)
+// -------------------------
 const roomUsers = {};
 const roomHosts = {};
 const kickedUsers = {};
@@ -296,4 +297,3 @@ io.on("connection", (socket) => {
 server.listen(PORT, () => {
   console.log(`🚀 Server running on http://localhost:${PORT}`);
 });
-
