@@ -21,6 +21,7 @@ const server = http.createServer(app);
 const io = new Server(server);
 const PORT = process.env.PORT || 4000;
 
+// MongoDB setup
 mongoose.set('strictQuery', true);
 mongoose.connect(process.env.MONGO_URI, {
   useNewUrlParser: true,
@@ -28,7 +29,12 @@ mongoose.connect(process.env.MONGO_URI, {
 }).then(() => console.log("✅ Connected to MongoDB Atlas"))
   .catch(err => console.error("❌ MongoDB connection error:", err));
 
+// Express setup
 app.set("view engine", "ejs");
+
+// Serve static files from public (for CSS, images, etc.)
+app.use(express.static(path.join(__dirname, 'public')));
+
 app.use(cors());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
@@ -44,6 +50,7 @@ passport.use(new LocalStrategy(User.authenticate()));
 passport.serializeUser(User.serializeUser());
 passport.deserializeUser(User.deserializeUser());
 
+// Nodemailer transporter
 const transporter = nodemailer.createTransport({
   service: "Gmail",
   auth: {
@@ -52,7 +59,7 @@ const transporter = nodemailer.createTransport({
   }
 });
 
-// Routes
+// EJS Web Routes
 app.get("/", (req, res) => res.render("home", { user: req.user || null }));
 app.get("/register", (req, res) => res.render("register", { user: req.user || null }));
 app.get("/login", (req, res) => res.render("login", { user: req.user || null, query: req.query || {} }));
@@ -193,14 +200,17 @@ app.post('/api/character', async (req, res) => {
   res.json(updated);
 });
 
-// Serve React build
+// React build for session pages only
 const buildPath = path.join(__dirname, "../frontend/build");
 if (fs.existsSync(buildPath)) {
-  app.use(express.static(buildPath));
-  app.get("/session/:sessionId", (req, res) => res.sendFile(path.join(buildPath, "index.html")));
-  app.get("*", (req, res) => res.sendFile(path.join(buildPath, "index.html")));
+  app.use('/session', express.static(buildPath));
+  
+  app.get("/session/:sessionId", (req, res) => {
+    res.sendFile(path.join(buildPath, "index.html"));
+  });
 }
 
+// Socket.io logic
 const roomUsers = {};
 const roomHosts = {};
 const kickedUsers = {};
@@ -258,12 +268,10 @@ io.on("connection", (socket) => {
   });
 
   socket.on("sendMessage", ({ username, text, room }) => {
-    console.log(`💬 ${username} in ${room}: ${text}`);
     io.to(room).emit("message", { username, text });
   });
 
   socket.on("moveIcon", ({ room, iconId, newPosition }) => {
-    console.log(`🧲 ${socket.username} moved icon ${iconId} in ${room}`);
     socket.to(room).emit("iconMoved", { iconId, newPosition });
   });
 
@@ -284,7 +292,8 @@ io.on("connection", (socket) => {
   });
 });
 
-
+// Start the server
 server.listen(PORT, () => {
   console.log(`🚀 Server running on http://localhost:${PORT}`);
 });
+
