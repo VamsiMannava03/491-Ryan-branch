@@ -34,6 +34,8 @@ function App() {
   const [activeTab, setActiveTab] = useState('chat');
   const [messages, setMessages] = useState([]);
   const [userList, setUserList] = useState([]);
+  const [host, setHost] = useState('');
+  const [kickedUsers, setKickedUsers] = useState([]);
 
   useEffect(() => {
     if (!username) {
@@ -50,6 +52,17 @@ function App() {
       socket.emit("joinRoom", { username, room: sessionId });
     }
   }, [username, sessionId]);
+
+  useEffect(() => {
+    socket.on("hostAssigned", (hostUsername) => setHost(hostUsername));
+    socket.on("kickedUsersList", (list) => setKickedUsers(list));
+    return () => {
+      socket.off("hostAssigned");
+      socket.off("kickedUsersList");
+    };
+  }, []);
+
+  const isHost = username === host;
 
   const fetchInventory = async () => {
     const res = await fetch(`http://localhost:4000/api/inventory?sessionId=${sessionId}`);
@@ -113,7 +126,6 @@ function App() {
             <h1 style={{ margin: 0 }}>Dungeon Dweller</h1>
           </div>
 
-          {/* Battle Map */}
           <div style={{ flexGrow: 1, overflow: 'hidden' }}>
             <BattleMap mapImage={battleMapImage} icons={icons} setIcons={setIcons} />
           </div>
@@ -158,6 +170,8 @@ function App() {
                     setMessages={setMessages}
                     userList={userList}
                     setUserList={setUserList}
+                    isHost={isHost}
+                    kickedUsers={kickedUsers}
                   />
                 </div>
               </div>

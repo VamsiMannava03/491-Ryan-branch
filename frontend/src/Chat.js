@@ -10,7 +10,7 @@ function getRandomColor(username) {
   return colors[Math.abs(hash) % colors.length];
 }
 
-function Chat({ room, username, messages, setMessages, userList, setUserList }) {
+function Chat({ room, username, messages, setMessages, userList, setUserList, isHost, kickedUsers }) {
   const [message, setMessage] = useState('');
 
   const userColors = useMemo(() => {
@@ -34,9 +34,15 @@ function Chat({ room, username, messages, setMessages, userList, setUserList }) 
       setUserList(users);
     });
 
+    socket.on('kicked', () => {
+      alert('You were kicked from the session.');
+      window.location.href = '/session-options';
+    });
+
     return () => {
       socket.off('message');
       socket.off('userList');
+      socket.off('kicked');
     };
   }, [room, username, setMessages, setUserList]);
 
@@ -48,16 +54,56 @@ function Chat({ room, username, messages, setMessages, userList, setUserList }) 
     }
   };
 
+  const handleKick = (target) => {
+    socket.emit('kickUser', { room, target });
+  };
+
+  const handleUnkick = (target) => {
+    socket.emit('unkickUser', { room, target });
+  };
+
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100%' }}>
       <div style={{ flexGrow: 1, overflowY: 'auto', backgroundColor: '#f5f5f5', padding: '10px' }}>
         <div>
           <strong>🧑 Players in session:</strong>
           <ul>
-            {userList.map((u, i) => <li key={i}>{u}</li>)}
+            {userList.map((u, i) => (
+              <li key={i}>
+                {u}
+                {isHost && u !== username && (
+                  <button
+                    onClick={() => handleKick(u)}
+                    style={{ marginLeft: '10px', color: 'red' }}
+                  >
+                    Kick
+                  </button>
+                )}
+              </li>
+            ))}
           </ul>
+
+          {isHost && kickedUsers.length > 0 && (
+            <>
+              <strong>🚫 Kicked Users:</strong>
+              <ul>
+                {kickedUsers.map((u, i) => (
+                  <li key={i}>
+                    {u}
+                    <button
+                      onClick={() => handleUnkick(u)}
+                      style={{ marginLeft: '10px', color: 'green' }}
+                    >
+                      Unkick
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
           <hr />
         </div>
+
         <div>
           {messages.map((msg, i) => (
             <div key={i}>
@@ -66,6 +112,7 @@ function Chat({ room, username, messages, setMessages, userList, setUserList }) 
           ))}
         </div>
       </div>
+
       <div style={{ borderTop: '1px solid #ccc', padding: '10px', backgroundColor: '#f5f5f5' }}>
         <form onSubmit={sendMessage} style={{ display: 'flex' }}>
           <input
