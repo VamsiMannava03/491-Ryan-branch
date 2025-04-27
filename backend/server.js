@@ -22,25 +22,19 @@ const io = new Server(server);
 const PORT = process.env.PORT || 4000;
 
 // MongoDB setup
-mongoose.set('strictQuery', true);
 mongoose.connect(process.env.MONGO_URI, {
   useNewUrlParser: true,
   useUnifiedTopology: true
-}).then(() => console.log("✅ Connected to MongoDB Atlas"))
-  .catch(err => console.error("❌ MongoDB connection error:", err));
+});
 
-// View engine and static public assets
+// View engine and static assets
 app.set("view engine", "ejs");
-app.use(express.static(path.join(__dirname, 'public'))); // Serve style.css, Dragons.png, etc.
+app.use(express.static(path.join(__dirname, "public")));
 
 app.use(cors());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
-app.use(session({
-  secret: "your_secret_key",
-  resave: false,
-  saveUninitialized: false
-}));
+app.use(session({ secret: "your_secret_key", resave: false, saveUninitialized: false }));
 app.use(passport.initialize());
 app.use(passport.session());
 
@@ -59,29 +53,23 @@ const transporter = nodemailer.createTransport({
 // -------------------------
 // EJS Web Routes
 // -------------------------
-
 app.get("/", (req, res) => res.render("home", { user: req.user || null }));
-
 app.get("/register", (req, res) => res.render("register", { user: req.user || null }));
-
 app.get("/login", (req, res) => res.render("login", { user: req.user || null, query: req.query || {} }));
 
 app.post("/register", (req, res) => {
   const { username, email, password } = req.body;
   const token = crypto.randomBytes(16).toString("hex");
   const newUser = new User({ username, email, verificationToken: token, isVerified: false });
-
   User.register(newUser, password, (err, user) => {
     if (err) return res.status(400).render("register", { error: err.message, user: req.user || null });
-
     const mailOptions = {
       from: process.env.EMAIL_USER,
       to: email,
       subject: "Account Verification",
-      text: `Hello ${username},\n\nPlease verify your account:\n\n${req.protocol}://${req.get("host")}/verify?token=${token}&email=${email}`
+      text: `Hello ${username}, verify your account:\n\n${req.protocol}://${req.get("host")}/verify?token=${token}&email=${email}`
     };
-
-    transporter.sendMail(mailOptions, (error, info) => {
+    transporter.sendMail(mailOptions, (error) => {
       if (error) return res.status(500).json({ error: "Error sending email." });
       res.status(200).json({ message: `Verification email sent to ${email}` });
     });
@@ -92,19 +80,16 @@ app.get("/verify", (req, res) => {
   const { token, email } = req.query;
   User.findOne({ email, verificationToken: token }, (err, user) => {
     if (!user) return res.status(400).json({ error: "Invalid or expired token." });
-
     user.isVerified = true;
     user.verificationToken = undefined;
-    user.save((saveErr) => {
-      if (saveErr) return res.status(500).json({ error: "Verification error." });
+    user.save(err => {
+      if (err) return res.status(500).json({ error: "Verification error." });
       res.status(200).json({ message: "Your account is verified!" });
     });
   });
 });
 
-app.post("/login", passport.authenticate("local", {
-  failureRedirect: "/login"
-}), (req, res) => {
+app.post("/login", passport.authenticate("local", { failureRedirect: "/login" }), (req, res) => {
   if (!req.user.isVerified) {
     req.logout(() => {});
     return res.redirect("/login?error=notverified");
@@ -128,19 +113,25 @@ app.get("/join-session", (req, res) => {
   res.redirect(`/session/${sessionId}`);
 });
 
-
 app.get("/logout", (req, res) => {
   req.logout(() => {});
   res.redirect("/");
 });
 
+// -------------------------
 // Inventory API
-const itemSchema = new mongoose.Schema({ name: String, quantity: Number });
+// -------------------------
+const itemSchema = new mongoose.Schema({
+  user:     { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  name:     { type: String, required: true },
+  quantity: { type: Number, required: true }
+});
 const Item = mongoose.model("Item", itemSchema);
 
 app.get("/api/inventory", async (req, res) => {
+  if (!req.isAuthenticated()) return res.status(401).json({ error: "Not logged in" });
   try {
-    const items = await Item.find();
+    const items = await Item.find({ user: req.user._id });
     res.json(items);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -148,8 +139,9 @@ app.get("/api/inventory", async (req, res) => {
 });
 
 app.post("/api/inventory", async (req, res) => {
+  if (!req.isAuthenticated()) return res.status(401).json({ error: "Not logged in" });
   try {
-    const newItem = new Item(req.body);
+    const newItem = new Item({ ...req.body, user: req.user._id });
     await newItem.save();
     res.status(201).json(newItem);
   } catch (err) {
@@ -158,42 +150,53 @@ app.post("/api/inventory", async (req, res) => {
 });
 
 app.put("/api/inventory/:id", async (req, res) => {
+  if (!req.isAuthenticated()) return res.status(401).json({ error: "Not logged in" });
   try {
-    const updatedItem = await Item.findByIdAndUpdate(req.params.id, req.body, { new: true });
-    res.json(updatedItem);
+    const updated = await Item.findOneAndUpdate(
+      { _id: req.params.id, user: req.user._id },
+      req.body,
+      { new: true }
+    );
+    if (!updated) return res.status(404).json({ error: "Item not found" });
+    res.json(updated);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
 app.delete("/api/inventory/:id", async (req, res) => {
+  if (!req.isAuthenticated()) return res.status(401).json({ error: "Not logged in" });
   try {
-    await Item.findByIdAndDelete(req.params.id);
+    const deleted = await Item.findOneAndDelete({ _id: req.params.id, user: req.user._id });
+    if (!deleted) return res.status(404).json({ error: "Item not found" });
     res.json({ message: "Deleted successfully" });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
+// -------------------------
 // Character Sheet API
-const Character = mongoose.model("Character", new mongoose.Schema({
-  user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, unique: true },
-  stats: Object,
-  saves: Object,
-  skills: Object,
-  armorClass: Number,
-  initiative: Number,
-  speed: Number,
-  hitPoints: String,
-}));
+// -------------------------
+const characterSchema = new mongoose.Schema({
+  user:        { type: mongoose.Schema.Types.ObjectId, ref: 'User', unique: true },
+  stats:       Object,
+  saves:       Object,
+  skills:      Object,
+  armorClass:  Number,
+  initiative:  Number,
+  speed:       Number,
+  hitPoints:   String
+});
+const Character = mongoose.model("Character", characterSchema);
 
-app.get('/api/character', async (req, res) => {
+app.get("/api/character", async (req, res) => {
   if (!req.isAuthenticated()) return res.status(401).json({ error: "Not logged in" });
   const character = await Character.findOne({ user: req.user._id });
   res.json(character || {});
 });
 
-app.post('/api/character', async (req, res) => {
+app.post("/api/character", async (req, res) => {
   if (!req.isAuthenticated()) return res.status(401).json({ error: "Not logged in" });
   const updated = await Character.findOneAndUpdate(
     { user: req.user._id },
@@ -203,22 +206,77 @@ app.post('/api/character', async (req, res) => {
   res.json(updated);
 });
 
+// -------------------------
+// Spells API (per-user, mirrors inventory logic)
+// -------------------------
+const spellSchema = new mongoose.Schema({
+  user:        { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  name:        { type: String, required: true },
+  level:       { type: Number, required: true },
+  description: { type: String }
+});
+const Spell = mongoose.model("Spell", spellSchema);
+
+app.get("/api/spells", async (req, res) => {
+  if (!req.isAuthenticated()) return res.status(401).json({ error: "Not logged in" });
+  try {
+    const spells = await Spell.find({ user: req.user._id });
+    res.json(spells);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post("/api/spells", async (req, res) => {
+  if (!req.isAuthenticated()) return res.status(401).json({ error: "Not logged in" });
+  try {
+    const newSpell = new Spell({ ...req.body, user: req.user._id });
+    await newSpell.save();
+    res.status(201).json(newSpell);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.put("/api/spells/:id", async (req, res) => {
+  if (!req.isAuthenticated()) return res.status(401).json({ error: "Not logged in" });
+  try {
+    const updatedSpell = await Spell.findOneAndUpdate(
+      { _id: req.params.id, user: req.user._id },
+      req.body,
+      { new: true }
+    );
+    if (!updatedSpell) return res.status(404).json({ error: "Spell not found" });
+    res.json(updatedSpell);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete("/api/spells/:id", async (req, res) => {
+  if (!req.isAuthenticated()) return res.status(401).json({ error: "Not logged in" });
+  try {
+    const deleted = await Spell.findOneAndDelete({ _id: req.params.id, user: req.user._id });
+    if (!deleted) return res.status(404).json({ error: "Spell not found" });
+    res.json({ message: "Deleted successfully" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
 // -------------------------
-// React build ONLY for /session/:sessionId
+// React build for /session/:sessionId
 // -------------------------
 const buildPath = path.join(__dirname, "../frontend/build");
 if (fs.existsSync(buildPath)) {
   app.use(express.static(buildPath));
-
-
   app.get("/session/:sessionId", (req, res) => {
     res.sendFile(path.join(buildPath, "index.html"));
   });
 }
 
 // -------------------------
-// Socket.IO logic (unchanged)
+// Socket.IO logic
 // -------------------------
 const roomUsers = {};
 const roomHosts = {};
@@ -230,18 +288,14 @@ io.on("connection", (socket) => {
       socket.emit("kicked");
       return;
     }
-
     socket.join(room);
     socket.username = username;
     socket.room = room;
-
     if (!roomUsers[room]) roomUsers[room] = [];
     if (!roomUsers[room].includes(username)) roomUsers[room].push(username);
-
     if (roomUsers[room].length === 1) {
       roomHosts[room] = username;
     }
-
     io.to(room).emit("userList", roomUsers[room]);
     io.to(room).emit("hostAssigned", roomHosts[room]);
     io.to(room).emit("kickedUsersList", kickedUsers[room] || []);
@@ -249,19 +303,16 @@ io.on("connection", (socket) => {
 
   socket.on("kickUser", ({ room, target }) => {
     if (socket.username === roomHosts[room]) {
-      const sockets = Array.from(io.sockets.sockets.values());
-      const targetSocket = sockets.find(s => s.username === target && s.room === room);
-
+      const targetSocket = Array.from(io.sockets.sockets.values())
+        .find(s => s.username === target && s.room === room);
       if (targetSocket) {
         targetSocket.emit("kicked");
         targetSocket.leave(room);
         targetSocket.disconnect(true);
       }
-
       roomUsers[room] = roomUsers[room].filter(u => u !== target);
       if (!kickedUsers[room]) kickedUsers[room] = [];
-      if (!kickedUsers[room].includes(target)) kickedUsers[room].push(target);
-
+      kickedUsers[room].push(target);
       io.to(room).emit("userList", roomUsers[room]);
       io.to(room).emit("kickedUsersList", kickedUsers[room]);
     }
