@@ -2,17 +2,24 @@
 <html>
 <head>
   <title>Session Created</title>
+  <link rel="stylesheet" href="/style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Eagle+Lake&display=swap" rel="stylesheet">
 </head>
 <body>
-  <h1>✅ Session Created!</h1>
+  <!-- Dragon overlay -->
+  <img src="/Dragons.png" alt="Dragon" class="dragon-background">
 
-  <p><strong>Session ID:</strong> <code><%= sessionId %></code></p>
-  <p>Share this session ID with your friends so they can join you.</p>
+  <div class="container">
+    <h1>Session Created!</h1>
 
-  <form action="/session/<%= sessionId %>">
-    <button type="submit">Enter Session</button>
-  </form>
+    <p><strong>Session ID:</strong> <code><%= sessionId %></code></p>
+    <p>Share and play with friends!</p>
 
-  <p><a href="/session-options">Back to session options</a></p>
+    <form action="/session/<%= sessionId %>">
+      <button type="submit">Enter Session</button>
+    </form>
+
+    <p style="margin-top: 20px;"><a href="/session-options">Main Menu</a></p>
+  </div>
 </body>
 </html>
