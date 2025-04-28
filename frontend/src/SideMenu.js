@@ -5,7 +5,8 @@ export default function SideMenu({ activeTab, setActiveTab }) {
     { id: 'chat', icon: '💬' },
     { id: 'inventory', icon: '🎒' },
     { id: 'character', icon: '🧝' },
-    { id: 'map', icon: '🗺️' }
+    { id: 'map', icon: '🗺️' },
+    { id: 'spells', icon: '🧙‍♂️' },
   ];
 
   return (

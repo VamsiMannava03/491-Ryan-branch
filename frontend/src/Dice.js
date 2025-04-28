@@ -1,37 +1,38 @@
-import React, { useState } from 'react';
+export function rollDice(command) {
+  const input = command.trim().toLowerCase();
+  const dicePart = input.startsWith('/roll')
+    ? input.slice(5).trim()
+    : input;
 
-const DiceRoller = () => {
-  // Initialize with a random roll (1-20)
-  const [roll, setRoll] = useState(Math.floor(Math.random() * 20) + 1);
+  const dIndex = dicePart.indexOf('d');
+  if (dIndex === -1) return null;
 
-  // When the dice gif is clicked, generate 1-20                 TODO make it so the animation only goes when clicking it
-  const handleRoll = () => {
-    const newRoll = Math.floor(Math.random() * 20) + 1;
-    setRoll(newRoll);
-  };
+  const leftPips = dicePart.slice(0, dIndex).trim();
+  let rest = dicePart.slice(dIndex + 1).trim();
 
-  return (
-    <div
-      style={{
-        position: 'fixed',
-        top: '10px',
-        right: '10px',
-        textAlign: 'center',
-        zIndex: 1000,
-        background: 'rgba(255,255,255,0.8)',
-        padding: '10px',
-        borderRadius: '8px',
-      }}
-    >
-      <img
-        src="/dice.gif"
-        alt="Dice rolling"
-        style={{ width: '100px', cursor: 'pointer' }}       //fix here
-        onClick={handleRoll}
-      />
-      <div style={{ fontSize: '24px', marginTop: '5px' }}>{roll}</div>
-    </div>
-  );
-};
+  const plus = rest.indexOf('+');
+  const minus = rest.indexOf('-');
+  const splitAt = plus > -1 ? plus : minus;
 
-export default DiceRoller;
+  const rightPips = splitAt > -1
+    ? rest.slice(0, splitAt).trim()
+    : rest;
+  const modifierStr = splitAt > -1
+    ? rest.slice(splitAt).trim()
+    : '';
+
+  const numDice = parseInt(leftPips, 10) || 1;
+  const diceSides = parseInt(rightPips, 10);
+  const cleanMod = modifierStr.replace(/\s+/g, '');
+  const modifier = cleanMod ? parseInt(cleanMod, 10) : 0;
+
+  const pips = [];
+  for (let i = 0; i < numDice; i++) {
+    pips.push(Math.floor(Math.random() * diceSides) + 1);
+  }
+
+  const total = pips.reduce((sum, pip) => sum + pip, 0) + modifier;
+  const expression = `${numDice}d${diceSides}${cleanMod}`;
+
+  return { pips, modifier, total, expression };
+}

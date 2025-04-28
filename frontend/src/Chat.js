@@ -1,8 +1,12 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import socket from './socket';
+import { rollDice } from './Dice';
 
 function getRandomColor(username) {
-  const colors = ["#e6194b", "#3cb44b", "#ffe119", "#4363d8", "#f58231", "#911eb4", "#46f0f0", "#f032e6"];
+  const colors = [
+    '#e6194b', '#3cb44b', '#ffe119', '#4363d8',
+    '#f58231', '#911eb4', '#46f0f0', '#f032e6'
+  ];
   let hash = 0;
   for (let i = 0; i < username.length; i++) {
     hash = username.charCodeAt(i) + ((hash << 5) - hash);
@@ -27,10 +31,10 @@ function Chat({ room, username, messages, setMessages, userList, setUserList, is
     socket.emit('joinRoom', { username, room });
 
     socket.on('message', (data) => {
-      setMessages((prev) => [...prev, data]);
+      setMessages(prev => [...prev, data]);
     });
 
-    socket.on('userList', (users) => {
+    socket.on('userList', users => {
       setUserList(users);
     });
 
@@ -46,19 +50,48 @@ function Chat({ room, username, messages, setMessages, userList, setUserList, is
     };
   }, [room, username, setMessages, setUserList]);
 
-  const sendMessage = (e) => {
+  const sendMessage = e => {
     e.preventDefault();
-    if (message.trim()) {
-      socket.emit('sendMessage', { username, text: message, room });
-      setMessage('');
+    const text = message.trim();
+    if (!text) return;
+
+    if (text === '/info') {
+      socket.emit('sendMessage', {
+        username,
+        text: 'Dice commands: use `/roll NdM±K` to roll N dice with M sides. Modifier ±K is optional. E.g. `/roll 4d6+2` => [3,5,1,6] + 2 = 17.',
+        room
+      });
+    } else if (text.startsWith('/roll')) {
+      const result = rollDice(text);
+      if (result) {
+        const { expression, pips, total, modifier } = result;
+        let modDisplay = '';
+        if (modifier > 0) modDisplay = `+ ${modifier}`;
+        else if (modifier < 0) modDisplay = `- ${Math.abs(modifier)}`;
+
+        socket.emit('sendMessage', {
+          username,
+          text: `rolled ${expression}: [${pips.join(', ')}] ${modDisplay} = ${total}`,
+          room
+        });
+      } else {
+        socket.emit('sendMessage', {
+          username,
+          text: 'Invalid roll command. Usage: /roll NdM±K (e.g. /roll 2d6+1).',
+          room
+        });
+      }
+    } else {
+      socket.emit('sendMessage', { username, text, room });
     }
+    setMessage('');
   };
 
-  const handleKick = (target) => {
+  const handleKick = target => {
     socket.emit('kickUser', { room, target });
   };
 
-  const handleUnkick = (target) => {
+  const handleUnkick = target => {
     socket.emit('unkickUser', { room, target });
   };
 
@@ -118,7 +151,7 @@ function Chat({ room, username, messages, setMessages, userList, setUserList, is
           <input
             type="text"
             value={message}
-            onChange={(e) => setMessage(e.target.value)}
+            onChange={e => setMessage(e.target.value)}
             style={{ flex: 1, marginRight: '5px', padding: '5px' }}
             placeholder="Type a message..."
           />
