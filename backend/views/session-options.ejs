@@ -2,22 +2,30 @@
 <html>
 <head>
   <title>Session Options</title>
+  <link rel="stylesheet" href="/style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Eagle+Lake&display=swap" rel="stylesheet">
 </head>
 <body>
-  <h1>Welcome, <%= username %>!</h1>
+  <!-- Dragon overlay -->
+  <img src="Dragons.png" alt="Dragon" class="dragon-background">
 
-  <form action="/create-session" method="POST">
-    <button type="submit">➕ Create New Session</button>
-  </form>
+  <div class="container">
+    <h1>Welcome, <%= username %>!</h1>
 
-  <hr />
+    <form action="/create-session" method="POST" style="margin-bottom: 20px;">
+      <button type="submit"> + Create New Session</button>
+    </form>
 
-  <form action="/join-session" method="GET">
-    <label for="sessionId">Join Existing Session</label>
-    <input type="text" name="sessionId" required />
-    <button type="submit">Join</button>
-  </form>
+    <hr style="margin: 20px 0; border-color: #916a23;" />
 
-  <p><a href="/logout">Logout</a></p>
+    <form action="/join-session" method="GET">
+      <label for="sessionId">Join Session</label><br>
+      <input type="text" name="sessionId" required style="margin-top: 10px;" />
+      <br><br>
+      <button type="submit">Join</button>
+    </form>
+
+    <p style="margin-top: 20px;"><a href="/logout">Logout</a></p>
+  </div>
 </body>
 </html>
