@@ -64,11 +64,9 @@ function App() {
   useEffect(() => {
     socket.on("hostAssigned", setHost);
     socket.on("kickedUsersList", setKickedUsers);
-    socket.on("message", msg => setMessages(ms => [...ms, msg]));
     return () => {
       socket.off("hostAssigned");
       socket.off("kickedUsersList");
-      socket.off("message");
     };
   }, []);
 
