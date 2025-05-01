@@ -1,9 +1,11 @@
+// App.js
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import socket from './socket';
 import BattleMap from './BattleMap';
 import Chat from './Chat';
 import CharacterSheet from './CharacterSheet';
+import Notepad from './Notepad';
 import {
   AddItemForm,
   InventoryGrid,
@@ -16,7 +18,7 @@ import {
   SpellsGrid,
   addSpellToDatabase,
   deleteSpellFromDatabase
-} from './spells';
+} from './Spells';
 import { DndProvider } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
 import SideMenu from './SideMenu';
@@ -30,10 +32,10 @@ function App() {
   const [messages, setMessages] = useState([]);
   const [battleMapImage, setBattleMapImage] = useState('/defaultmap1.png');
   const [icons, setIcons] = useState([
-    { id: 1, src: '/redmarker.png',   alt: 'Red Marker',   left: 390, top: 290 },
-    { id: 2, src: '/bluemarker.png',  alt: 'Blue Marker',  left: 420, top: 290 },
+    { id: 1, src: '/redmarker.png', alt: 'Red Marker', left: 390, top: 290 },
+    { id: 2, src: '/bluemarker.png', alt: 'Blue Marker', left: 420, top: 290 },
     { id: 3, src: '/greenmarker.png', alt: 'Green Marker', left: 390, top: 320 },
-    { id: 4, src: '/yellowmarker.png',alt: 'Yellow Marker',left: 420, top: 320 }
+    { id: 4, src: '/yellowmarker.png', alt: 'Yellow Marker', left: 420, top: 320 }
   ]);
   const [showDefaultMaps, setShowDefaultMaps] = useState(false);
   const [inventory, setInventory] = useState([]);
@@ -64,9 +66,15 @@ function App() {
   useEffect(() => {
     socket.on("hostAssigned", setHost);
     socket.on("kickedUsersList", setKickedUsers);
+    socket.on("mapUpdated", setBattleMapImage);
+    socket.on("addIcon", ({ icon }) => {
+      setIcons(prev => [...prev, icon]);
+    });
     return () => {
       socket.off("hostAssigned");
       socket.off("kickedUsersList");
+      socket.off("mapUpdated");
+      socket.off("addIcon");
     };
   }, []);
 
@@ -97,8 +105,30 @@ function App() {
     const f = e.target.files[0];
     if (!f) return;
     const r = new FileReader();
-    r.onload = ev => setBattleMapImage(ev.target.result);
+    r.onload = ev => {
+      const imgUrl = ev.target.result;
+      setBattleMapImage(imgUrl);
+      socket.emit('updateMap', { room: sessionId, imageUrl: imgUrl });
+    };
     r.readAsDataURL(f);
+  };
+
+  const handleCustomIconUpload = e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const newIcon = {
+        id: Date.now(),
+        src: ev.target.result,
+        alt: 'Custom Icon',
+        left: 100,
+        top: 100
+      };
+      setIcons(prev => [...prev, newIcon]);
+      socket.emit('addIcon', { room: sessionId, icon: newIcon });
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleAddItem = async () => {
@@ -218,15 +248,31 @@ function App() {
                 <button onClick={() => setShowDefaultMaps(s => !s)} style={{ width: '100%', marginBottom: 10 }}>
                   {showDefaultMaps ? 'Hide Default Maps' : 'Show Default Maps'}
                 </button>
-                {showDefaultMaps && [1,2,3,4].map(n => (
+                {showDefaultMaps && [1, 2, 3, 4].map(n => (
                   <img
                     key={n}
                     src={`/defaultmap${n}.png`}
                     alt={`Map ${n}`}
                     style={{ width: '100%', cursor: 'pointer', marginBottom: 10 }}
-                    onClick={() => setBattleMapImage(`/defaultmap${n}.png`)}
+                    onClick={() => {
+                      setBattleMapImage(`/defaultmap${n}.png`);
+                      socket.emit('updateMap', { room: sessionId, imageUrl: `/defaultmap${n}.png` });
+                    }}
                   />
                 ))}
+                <h3 style={{ fontFamily: 'Cinzel, serif', marginTop: '20px' }}>➕ Add Custom Icon</h3>
+                <input
+                  type="file"
+                  accept="image/png"
+                  onChange={handleCustomIconUpload}
+                  style={{ width: '100%', marginBottom: 10 }}
+                />
+              </div>
+            )}
+
+            {activeTab === 'notepad' && (
+              <div style={{ flexGrow: 1, overflowY: 'auto' }}>
+                <Notepad />
               </div>
             )}
           </div>

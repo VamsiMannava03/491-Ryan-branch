@@ -30,16 +30,24 @@ const BattleMap = ({ mapImage, icons, setIcons }) => {
   });
 
   useEffect(() => {
-    socket.on("iconMoved", ({ iconId, newPosition }) => {
+    const handleIconMoved = ({ iconId, newPosition }) => {
       setIcons(prev =>
         prev.map(icon =>
           icon.id === iconId ? { ...icon, ...newPosition } : icon
         )
       );
-    });
+    };
+
+    const handleAddIcon = ({ icon }) => {
+      setIcons(prev => [...prev, icon]);
+    };
+
+    socket.on("iconMoved", handleIconMoved);
+    socket.on("addIcon", handleAddIcon);
 
     return () => {
-      socket.off("iconMoved");
+      socket.off("iconMoved", handleIconMoved);
+      socket.off("addIcon", handleAddIcon);
     };
   }, [setIcons]);
 

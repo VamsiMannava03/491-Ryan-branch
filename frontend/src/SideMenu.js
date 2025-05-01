@@ -7,6 +7,7 @@ export default function SideMenu({ activeTab, setActiveTab }) {
     { id: 'character', icon: '🧝' },
     { id: 'map', icon: '🗺️' },
     { id: 'spells', icon: '🧙‍♂️' },
+    { id: 'notepad', icon: '📓' }, // ✅ Added Notepad tab
   ];
 
   return (

@@ -1,27 +1,31 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta charset="UTF-8">
-  <title>Register</title>
+  <title>Register - Dungeon Dweller</title>
+  <link rel="stylesheet" href="/style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Eagle+Lake&display=swap" rel="stylesheet">
 </head>
 <body>
-  <h1>Register</h1>
-  <form action="/register" method="POST">
-    <div>
-      <label for="username">Username:</label>
-      <input type="text" id="username" name="username" required>
-    </div>
-    <div>
-      <label for="email">Email:</label>
-      <input type="email" id="email" name="email" required>
-    </div>
-    <div>
-      <label for="password">Password:</label>
-      <input type="password" id="password" name="password" required>
-    </div>
-    <button type="submit">Register</button>
-  </form>
+  <img src="Dragons.png" alt="Dragon" class="dragon-background">
+  <div class="container">
+    <h1>Register</h1>
+    <form action="/register" method="POST">
+      <div>
+       <label for="username">Username:</label>
+        <input type="text" id="username" name="username" required>
+      </div>
+     <div>
+       <label for="email">Email:</label>
+       <input type="email" id="email" name="email" required>
+     </div>
+     <div>
+        <label for="password">Password:</label>
+        <input type="password" id="password" name="password" required>
+      </div>
+      <button type="submit">Register</button>
+    </form>
+    <p>Already have an account? <a href="/login">Login here</a></p>
+  </div>
 
-  <p>Already have an account? <a href="/login">Login here</a></p>
 </body>
 </html>

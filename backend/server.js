@@ -12,6 +12,7 @@ const http = require("http");
 const { Server } = require("socket.io");
 const fs = require("fs");
 const cors = require("cors");
+const multer = require("multer");
 const { v4: uuidv4 } = require("uuid");
 
 const User = require("./User");
@@ -48,6 +49,27 @@ const transporter = nodemailer.createTransport({
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS
   }
+});
+
+// Upload setup
+const uploadPath = path.join(__dirname, "uploads");
+if (!fs.existsSync(uploadPath)) fs.mkdirSync(uploadPath);
+
+const storage = multer.diskStorage({
+  destination: uploadPath,
+  filename: (req, file, cb) => {
+    const uniqueName = Date.now() + "-" + file.originalname.replace(/\s+/g, "_");
+    cb(null, uniqueName);
+  }
+});
+const upload = multer({ storage });
+app.use("/uploads", express.static(uploadPath));
+
+// Upload route
+app.post("/upload-icon", upload.single("icon"), (req, res) => {
+  if (!req.file) return res.status(400).json({ error: "No file uploaded" });
+  const fileUrl = `/uploads/${req.file.filename}`;
+  res.status(200).json({ url: fileUrl });
 });
 
 // -------------------------
@@ -207,7 +229,7 @@ app.post("/api/character", async (req, res) => {
 });
 
 // -------------------------
-// Spells API (per-user, mirrors inventory logic)
+// Spells API
 // -------------------------
 const spellSchema = new mongoose.Schema({
   user:        { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
@@ -241,13 +263,13 @@ app.post("/api/spells", async (req, res) => {
 app.put("/api/spells/:id", async (req, res) => {
   if (!req.isAuthenticated()) return res.status(401).json({ error: "Not logged in" });
   try {
-    const updatedSpell = await Spell.findOneAndUpdate(
+    const updated = await Spell.findOneAndUpdate(
       { _id: req.params.id, user: req.user._id },
       req.body,
       { new: true }
     );
-    if (!updatedSpell) return res.status(404).json({ error: "Spell not found" });
-    res.json(updatedSpell);
+    if (!updated) return res.status(404).json({ error: "Spell not found" });
+    res.json(updated);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -265,7 +287,7 @@ app.delete("/api/spells/:id", async (req, res) => {
 });
 
 // -------------------------
-// React build for /session/:sessionId
+// React build
 // -------------------------
 const buildPath = path.join(__dirname, "../frontend/build");
 if (fs.existsSync(buildPath)) {
@@ -281,6 +303,7 @@ if (fs.existsSync(buildPath)) {
 const roomUsers = {};
 const roomHosts = {};
 const kickedUsers = {};
+const roomIcons = {};
 
 io.on("connection", (socket) => {
   socket.on("joinRoom", ({ username, room }) => {
@@ -299,6 +322,12 @@ io.on("connection", (socket) => {
     io.to(room).emit("userList", roomUsers[room]);
     io.to(room).emit("hostAssigned", roomHosts[room]);
     io.to(room).emit("kickedUsersList", kickedUsers[room] || []);
+
+    if (roomIcons[room]) {
+      roomIcons[room].forEach(icon => {
+        socket.emit("addIcon", { icon });
+      });
+    }
   });
 
   socket.on("kickUser", ({ room, target }) => {
@@ -335,6 +364,16 @@ io.on("connection", (socket) => {
     socket.to(room).emit("iconMoved", { iconId, newPosition });
   });
 
+  socket.on("updateMap", ({ room, imageUrl }) => {
+    io.to(room).emit("mapUpdated", imageUrl);
+  });
+
+  socket.on("addIcon", ({ room, icon }) => {
+    if (!roomIcons[room]) roomIcons[room] = [];
+    roomIcons[room].push(icon);
+    io.to(room).emit("addIcon", { icon }); // ✅ Send to ALL users including sender
+  });
+
   socket.on("disconnect", () => {
     const { username, room } = socket;
     if (username && room) {
@@ -352,7 +391,6 @@ io.on("connection", (socket) => {
   });
 });
 
-// Start the server
 server.listen(PORT, () => {
   console.log(`🚀 Server running on http://localhost:${PORT}`);
 });

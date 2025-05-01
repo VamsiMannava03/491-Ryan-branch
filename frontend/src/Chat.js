@@ -27,29 +27,31 @@ function Chat({ room, username, messages, setMessages, userList, setUserList, is
 
   useEffect(() => {
     if (!room || !username) return;
-
+  
     socket.emit('joinRoom', { username, room });
-
-    socket.on('message', (data) => {
+  
+    const handleMessage = (data) => {
       setMessages(prev => [...prev, data]);
-    });
-
-    socket.on('userList', users => {
+    };
+    const handleUserList = (users) => {
       setUserList(users);
-    });
-
-    socket.on('kicked', () => {
+    };
+    const handleKicked = () => {
       alert('You were kicked from the session.');
       window.location.href = '/session-options';
-    });
-
-    return () => {
-      socket.off('message');
-      socket.off('userList');
-      socket.off('kicked');
     };
-  }, [room, username, setMessages, setUserList]);
-
+  
+    socket.on('message', handleMessage);
+    socket.on('userList', handleUserList);
+    socket.on('kicked', handleKicked);
+  
+    return () => {
+      socket.off('message', handleMessage);
+      socket.off('userList', handleUserList);
+      socket.off('kicked', handleKicked);
+    };
+  }, [room, username]);
+  
   const sendMessage = e => {
     e.preventDefault();
     const text = message.trim();
